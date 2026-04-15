@@ -175,7 +175,7 @@ Each scenario uses the same seed sequence for fair comparison. All outputs are t
 
 ## 9. Connections to the Companion Artifact
 
-The [baseline conformal prediction artifact](conformal_prediction.py) demonstrates that the method works when assumptions hold. This harness answers the prior question: *should you trust that your deployment satisfies those assumptions?*
+The [**baseline conformal prediction artifact**: https://github.com/mariam-elelidy/Mathematical-Reliability-for-ML-Predictions](conformal_prediction.py) demonstrates that the method works when assumptions hold. This harness answers the prior question: *should you trust that your deployment satisfies those assumptions?*
 
 The two artifacts together represent a complete evaluation posture:
 
