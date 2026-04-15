@@ -1,0 +1,149 @@
+Assumption Stress Harness — Split Conformal Prediction
+──────────────────────────────────────────────────────────────────────────────
+α = 0.10  │  target coverage = 0.90  │  n = 600  d = 8  │  seeds = 50
+──────────────────────────────────────────────────────────────────────────────
+
+Each scenario breaks exactly one assumption.
+'Coverage damage' = scenario mean coverage − baseline mean coverage.
+
+  Scenario                Assumption broken                    coverage    ±      damage
+  ──────────────────────────────────────────────────────────────────────────────────────
+  Baseline                —                                    0.9087  ±0.0416  +0.0000  ✓ on target
+  Covariate Shift         Exchangeability                      0.8763  ±0.0728  -0.0323  ▼ mild drop
+  Label Noise Shift       Representative calibration           0.3045  ±0.0588  -0.6042  ▼▼▼ SEVERE DROP
+  Temporal Ordering       Exchangeability (temporal)           0.1260  ±0.0670  -0.7827  ▼▼▼ SEVERE DROP
+  Heavy Tails             Representative calibration (outliers)0.9837  ±0.0192  +0.0750  ▲ OVER-COVERED (too wide)
+  Small Cal Set           Calibration set size                 0.9330  ±0.0624  +0.0243  ▲ OVER-COVERED (too wide)
+  Concept Drift           Consistent data-generating process   0.2007  ±0.0526  -0.7080  ▼▼▼ SEVERE DROP
+
+──────────────────────────────────────────────────────────────────────────────
+SCENARIO DETAIL
+──────────────────────────────────────────────────────────────────────────────
+
+[0] Baseline  (broken: —)
+  coverage   0.9087 ±0.0416  ████████████████████
+  target     0.9000           ██████████████████░░
+  avg width  2.0540 ±0.0558
+  q          1.0270
+  damage     +0.0000  ✓ on target
+  ── All assumptions satisfied. Coverage tracks target. This is the ceiling.
+
+[1] Covariate Shift  (broken: Exchangeability)
+  coverage   0.8763 ±0.0728  █████████████████░░░
+  target     0.9000           ██████████████████░░
+  avg width  2.0540 ±0.0558
+  q          1.0270
+  damage     -0.0323  ▼ mild drop
+  ── Test X shifted by +3 in every dimension. Width unchanged (q calibrated on
+     in-distribution cal set), but test residuals grow because the model
+     extrapolates. Coverage drops ~3 percentage points. The mild severity here
+     is because the linear model still extrapolates reasonably; non-linear models
+     would show a larger drop under the same shift.
+
+[2] Label Noise Shift  (broken: Representative calibration)
+  coverage   0.3045 ±0.0588  ██████░░░░░░░░░░░░░░
+  target     0.9000           ██████████████████░░
+  avg width  2.0531 ±0.0558
+  q          1.0266
+  damage     -0.6042  ▼▼▼ SEVERE DROP
+  ── Test noise σ = 2.5 (vs calibration σ = 0.6). Calibration residuals are
+     ~4× smaller than test residuals, so q is calibrated for the wrong noise
+     level. Intervals are far too narrow. Coverage collapses to 0.30 — the
+     method is confidently wrong. Width is identical to baseline (q unchanged
+     because calibration data is unaffected), making this a silent failure:
+     nothing in the intervals themselves signals the problem.
+
+[3] Temporal Ordering  (broken: Exchangeability / temporal)
+  coverage   0.1260 ±0.0670  ██░░░░░░░░░░░░░░░░░░
+  target     0.9000           ██████████████████░░
+  avg width  48.2892 ±huge
+  q          24.1446
+  damage     -0.7827  ▼▼▼ SEVERE DROP
+  ── Most damaging scenario. Data sorted by time with a small slope (0.05/step).
+     Model trained on steps 0-359. Calibration on 360-479 (trend = +18 to +24).
+     Test on 480-599 (trend = +24 to +30). q is calibrated for cal-time residuals
+     (~24), but test-time residuals are systematically larger (~27-30). The upper
+     tail of test points consistently falls above ŷ + q. Result: massive width
+     (48.3) yet only 12.6% coverage — the worst of both worlds. The guarantee
+     is not just degraded; it is inverted.
+
+[4] Heavy Tails  (broken: Representative calibration / outlier inflation)
+  coverage   0.9837 ±0.0192  ████████████████████
+  target     0.9000           ██████████████████░░
+  avg width  3.0947 ±0.3814
+  q          1.5473
+  damage     +0.0750  ▲ OVER-COVERED (too wide)
+  ── 10% of calibration labels contaminated with 8σ outliers. Outlier residuals
+     inflate q from ~1.03 to ~1.55. Coverage rises to 0.984 (well above target)
+     because intervals are 50% wider than needed. The model is over-cautious: it
+     covers nearly everything but the intervals carry no useful information about
+     true uncertainty. Clinically, this is the "recommend everyone stay home"
+     failure mode — safe but useless.
+
+[5] Small Cal Set  (broken: Calibration set size)
+  coverage   0.9330 ±0.0624  █████████████████░░░
+  target     0.9000           ██████████████████░░
+  avg width  2.4047 ±0.7491
+  q          1.2023
+  damage     +0.0243  ▲ slightly over-covered
+  ── n_cal = 15 (vs 120 in baseline). The (n+1)(1-α) rank rule with n=15 and
+     α=0.10 forces k = ⌈16 × 0.90⌉ = 15 — the maximum residual. q is
+     systematically inflated (conservative), producing wider intervals and
+     slight over-coverage. Width std (0.75) is 13× higher than baseline (0.056),
+     showing that the real problem is variance: individual runs are unreliable
+     even though the mean is acceptable.
+
+[6] Concept Drift  (broken: Consistent data-generating process)
+  coverage   0.2007 ±0.0526  ████░░░░░░░░░░░░░░░░
+  target     0.9000           ██████████████████░░
+  avg width  2.0531 ±0.0558
+  q          1.0266
+  damage     -0.7080  ▼▼▼ SEVERE DROP
+  ── True weights w* shift by N(0, 1.5²) between calibration and test.
+     Calibration residuals reflect the original model's error; test residuals
+     reflect errors on a fundamentally different regression surface. Like label
+     noise shift, width is unchanged (silent failure): nothing in the intervals
+     signals that the model's predictions have become structurally wrong.
+
+══════════════════════════════════════════════════════════════════════════════
+FINAL TENSOR  [mean_coverage, mean_width, mean_q, coverage_damage]
+Rows: scenarios in order (0=Baseline … 6=Concept Drift)
+══════════════════════════════════════════════════════════════════════════════
+tensor([[ 0.9087,  2.0540,  1.0270,  0.0000],   # [0] Baseline
+        [ 0.8763,  2.0540,  1.0270, -0.0323],   # [1] Covariate Shift
+        [ 0.3045,  2.0531,  1.0266, -0.6042],   # [2] Label Noise Shift
+        [ 0.1260, 48.2892, 24.1446, -0.7827],   # [3] Temporal Ordering
+        [ 0.9837,  3.0947,  1.5473,  0.0750],   # [4] Heavy Tails
+        [ 0.9330,  2.4047,  1.2023,  0.0243],   # [5] Small Cal Set
+        [ 0.2007,  2.0531,  1.0266, -0.7080]])  # [6] Concept Drift
+
+──────────────────────────────────────────────────────────────────────────────
+CROSS-SCENARIO PATTERNS
+──────────────────────────────────────────────────────────────────────────────
+
+Pattern 1 — Silent failures (width unchanged, coverage collapsed):
+  Label Noise Shift and Concept Drift both produce coverage ~0.20-0.30 while
+  maintaining nearly identical width to baseline (2.053 vs 2.054). An operator
+  monitoring interval width would see nothing wrong. Coverage would only be
+  detected by comparing against a held-out ground-truth set — which is rarely
+  done post-deployment.
+
+Pattern 2 — The temporal failure is the worst:
+  Temporal ordering produced the lowest coverage (0.126) AND the largest width
+  (48.3) simultaneously — the worst possible outcome. This is because the trend
+  inflates calibration residuals (making q large), but test residuals are even
+  larger (making coverage poor). A deployment system relying on these intervals
+  would be both useless and confidently wrong.
+
+Pattern 3 — Outlier inflation vs small cal set have opposite mechanisms but
+  similar symptoms (over-coverage):
+  - Heavy tails: q inflated by outlier residuals → width +50%
+  - Small cal set: q inflated by coarse quantile grid → width +17%, variance +13×
+  The practical risk is different: heavy tails produce systematically uninformative
+  intervals; small cal sets produce intervals whose reliability cannot be trusted
+  run-to-run even if the average looks fine.
+
+Pattern 4 — Covariate shift is recoverable:
+  A 3-unit shift in X caused only -0.032 coverage damage — recoverable with
+  weighted conformal prediction (Tibshirani et al., 2019). This is the one
+  scenario where an extension (importance weighting) directly fixes the problem.
