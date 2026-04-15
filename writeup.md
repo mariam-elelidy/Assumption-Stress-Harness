@@ -1,6 +1,6 @@
 # Assumption Stress Harness: When Split Conformal Prediction Breaks
 
-**Author:** Mariam Mohamed Elelidy  
+**Author:** Mariam M. Elelidy  
 **Topic:** Uncertainty Quantification · Distribution-Free Inference · Failure-Mode Analysis
 
 ---
